@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { Event } from '../models/event.model';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,8 +26,20 @@ export class EventsService {
     }
 
     create(eventData: CreateEventParams): Event {
-        const newId: string = uuidv4();
         const now: Date = new Date();
+
+        const isDuplicate = Array.from(this.events.values()).some((event) =>
+            (event.title ?? '').trim().toLowerCase() === (eventData.title ?? '').trim().toLowerCase() &&
+            new Date(event.startDate ?? 0).getTime() === new Date(eventData.startDate ?? 0).getTime() &&
+            new Date(event.endDate ?? 0).getTime() === new Date(eventData.endDate ?? 0).getTime() &&
+            (event.location ?? '').trim().toLowerCase() === (eventData.location ?? '').trim().toLowerCase()
+        );
+
+        if (isDuplicate) {
+            throw new ConflictException('Duplicate event detected with same title, date, and location.');
+        }
+
+        const newId: string = uuidv4();
 
         const newEvent: Event = {
             ...eventData,
