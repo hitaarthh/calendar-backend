@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <button id="ping">Send Ping</button>
+    <button id="testNotification">Test Notification</button>
+    <div id="status">Disconnected</div>
+    <div id="messages"></div>
+
+    <script>
+        const socket = io('http://localhost:3000');
+        
+        socket.on('connect', () => {
+            document.getElementById('status').textContent = 'Connected';
+        });
+        
+        socket.on('disconnect', () => {
+            document.getElementById('status').textContent = 'Disconnected';
+        });
+        
+        socket.on('notification', (data) => {
+            console.log('Notification received:', data);
+            const msg = document.createElement('div');
+            msg.textContent = `Notification: ${data.title}`;
+            document.getElementById('messages').appendChild(msg);
+            
+            if (Notification.permission === 'granted') {
+                new Notification(data.title, { body: data.description });
+            }
+        });
+        
+        socket.on('pong', (data) => {
+            console.log('Pong received:', data);
+            const msg = document.createElement('div');
+            msg.textContent = 'Pong received: ' + JSON.stringify(data);
+            document.getElementById('messages').appendChild(msg);
+        });
+        
+        document.getElementById('ping').addEventListener('click', () => {
+            socket.emit('ping', {});
+        });
+        
+        document.getElementById('testNotification').addEventListener('click', () => {
+            fetch('http://localhost:3000/events/manual-notification')
+                .then(response => response.json())
+                .then(data => console.log(data));
+        });
+        
+        // Request notification permission
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+    </script>
+</body>
+</html>
