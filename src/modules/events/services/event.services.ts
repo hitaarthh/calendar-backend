@@ -1,6 +1,7 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Event } from '../models/event.model';
 import { v4 as uuidv4 } from 'uuid';
+import { NotificationService } from './notification.service';
 
 type CreateEventParams = Omit<Event, 'id' | 'createdAt' | 'updatedAt'>;
 type UpdateEventParams = Partial<Omit<Event, 'id' | 'createdAt'>>;
@@ -8,6 +9,11 @@ type UpdateEventParams = Partial<Omit<Event, 'id' | 'createdAt'>>;
 @Injectable()
 export class EventsService {
     private events: Map<string, Event> = new Map<string, Event>();
+
+    constructor(
+        @Inject(forwardRef(() => NotificationService))
+        private readonly notificationService?: NotificationService
+    ) { }
 
     findAll(): Event[] {
         return Array.from(this.events.values());
@@ -49,6 +55,12 @@ export class EventsService {
         };
 
         this.events.set(newId, newEvent);
+
+        // Schedule notification for the new event
+        if (this.notificationService) {
+            this.notificationService.scheduleNotification(newEvent);
+        }
+
         return newEvent;
     }
 
@@ -66,10 +78,22 @@ export class EventsService {
         };
 
         this.events.set(id, updatedEvent);
+
+        // Reschedule notification if the event was updated
+        if (this.notificationService) {
+            this.notificationService.scheduleNotification(updatedEvent);
+        }
+
         return updatedEvent;
     }
 
     delete(id: string): boolean {
+        // Cancel any pending notifications before deleting
+        if (this.notificationService) {
+            // Use dismissNotification instead of cancelNotification
+            this.notificationService.dismissNotification(id);
+        }
+
         return this.events.delete(id);
     }
 
